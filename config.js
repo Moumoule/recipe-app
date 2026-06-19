@@ -1,0 +1,3 @@
+const SUPABASE_URL = "https://ktfzmpaoxaknowtymwgp.supabase.co"; 
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt0ZnptcGFveGFrbm93dHltd2dwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3NDMwNzMsImV4cCI6MjA5NzMxOTA3M30.Jwgfh_eGqLDLN8fMQLO0PLKZ5PCcpC64zmXvNZ9UCFI";
+

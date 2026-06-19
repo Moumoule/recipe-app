@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mes Recettes</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Mes Recettes">
+  <meta name="theme-color" content="#ff6b6b">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+</head>
+
+<body>
+
+<!-- 🔐 LOGIN -->
+<div id="screen-auth" class="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">🍳</div>
+    <h1 class="auth-title">Mes Recettes</h1>
+    <p class="auth-sub">Connecte-toi pour accéder à tes recettes</p>
+
+    <input id="auth-email" type="email" placeholder="Adresse email" class="auth-input" />
+    <div style="position:relative; width:100%;">
+      <input id="auth-password" type="password" placeholder="Mot de passe" class="auth-input"
+        onkeydown="if(event.key==='Enter') loginUser()"
+        style="width:100%; box-sizing:border-box; padding-right:44px;" />
+      <button type="button" onclick="togglePassword()" class="btn-eye" id="btn-eye">
+        <span class="material-symbols-outlined">visibility</span>
+      </button>
+    </div>
+
+    <p id="auth-error" class="auth-error"></p>
+    <button class="auth-btn-primary" onclick="loginUser()">Se connecter</button>
+    <button class="auth-btn-secondary" onclick="registerUser()">Créer un compte</button>
+  </div>
+</div>
+
+<!-- 📱 APP -->
+<div id="screen-app" class="hidden">
+
+  <!-- HEADER -->
+  <header class="header">
+    <h1>🍳 Mes Recettes</h1>
+    <div class="header-actions">
+      <button id="theme-btn" class="btn-theme" onclick="toggleTheme()">☀️</button>
+      <button onclick="openEditor()" class="btn-add">
+        <span class="material-symbols-outlined">add</span>
+      </button>
+      <button class="btn-logout" onclick="logoutUser()" title="Se déconnecter">
+        <span class="material-symbols-outlined">logout</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- CONTENU PRINCIPAL -->
+  <div class="main-content">
+
+    <!-- 🍽️ RECETTES -->
+    <div id="recipes-view">
+      <div class="search-container">
+        <input type="text" id="search-input" placeholder="Rechercher..." oninput="renderRecipes()">
+        <button class="btn-icon" onclick="triggerImport()" title="Importer JSON">
+          <span class="material-symbols-outlined">folder_open</span>
+        </button>
+        <input type="file" id="import-json" accept=".json" hidden>
+      </div>
+
+      <div class="filters">
+        <div id="filter-type" class="filter-group"></div>
+        <div id="filter-time" class="filter-group"></div>
+        <div id="filter-difficulty" class="filter-group"></div>
+        <div id="filter-favorite" class="filter-group"></div>
+      </div>
+
+      <ul id="recipes-list"></ul>
+    </div>
+
+    <!-- ✅ SÉLECTION -->
+    <div id="selected-view" class="tab-section hidden">
+      <div id="selected-recipes"></div>
+      <button onclick="clearSelection()" class="btn-full-secondary" style="margin-top:12px;">
+        <span class="material-symbols-outlined" style="vertical-align:middle;">delete</span>
+        Vider la sélection
+      </button>
+    </div>
+
+    <!-- 🛒 COURSES -->
+    <div id="shopping-view" class="tab-section hidden">
+      <ul id="shopping-list"></ul>
+      <button onclick="clearChecked()" class="btn-full-secondary" style="margin-top:12px;">
+        <span class="material-symbols-outlined" style="vertical-align:middle;">cleaning_services</span>
+        Supprimer les cochés
+      </button>
+    </div>
+
+    <!-- ✏️ EXTRAS -->
+    <div id="extras-view" class="tab-section hidden">
+      <div class="extras-add">
+        <input id="extra-name" placeholder="Nom de l'article" class="extras-input"
+          onkeydown="if(event.key==='Enter') addExtra()">
+        <select id="extra-category" class="extras-select">
+          <option value="🧴 Hygiène">🧴 Hygiène</option>
+          <option value="🍷 Alcool / Boissons">🍷 Alcool / Boissons</option>
+          <option value="🏠 Maison">🏠 Maison</option>
+          <option value="🐾 Animaux">🐾 Animaux</option>
+          <option value="💊 Santé">💊 Santé</option>
+          <option value="🛒 Autres">🛒 Autres</option>
+        </select>
+        <button onclick="addExtra()" class="btn-add-small">
+          <span class="material-symbols-outlined">add</span>
+        </button>
+      </div>
+      <ul id="extras-list"></ul>
+    </div>
+
+    <!-- 📅 MENU -->
+    <div id="menu-view" class="tab-section hidden">
+      <button onclick="generateMenu()" class="btn-full-accent" style="margin-bottom:12px;">
+        <span class="material-symbols-outlined" style="vertical-align:middle;">shuffle</span>
+        Tout regénérer
+      </button>
+      <div id="menu-days"></div>
+      <button onclick="sendMenuToSelection()" class="btn-full-secondary" style="margin-top:16px;">
+        <span class="material-symbols-outlined" style="vertical-align:middle;">check_circle</span>
+        Envoyer à la sélection
+      </button>
+    </div>
+
+    <!-- 📸 SCANNER -->
+    <div id="scanner-view" class="tab-section hidden">
+      <!-- zone drop/select -->
+      <div id="scanner-dropzone" onclick="triggerScanInput()" style="
+        border:2px dashed var(--accent);
+        border-radius:16px;
+        padding:40px 20px;
+        text-align:center;
+        cursor:pointer;
+        background:var(--card);
+        margin-bottom:16px;
+        transition:background 0.2s;
+      ">
+        <div style="font-size:52px;">📷</div>
+        <p style="font-size:16px;font-weight:600;margin:8px 0;">Prendre une photo ou importer</p>
+        <small style="opacity:0.6;">JPG, PNG — recette manuscrite ou imprimée</small>
+      </div>
+
+      <!-- preview image -->
+      <div id="scanner-preview" style="display:none; margin-bottom:16px;">
+        <img id="scanner-img" style="width:100%;border-radius:12px;max-height:260px;object-fit:cover;" />
+        <button onclick="resetScanner()" style="
+          margin-top:8px;
+          background:none;
+          border:1px solid var(--accent);
+          color:var(--accent);
+          border-radius:8px;
+          padding:6px 14px;
+          cursor:pointer;
+          font-size:13px;
+        ">🔄 Changer la photo</button>
+      </div>
+
+      <!-- bouton analyser -->
+      <button id="btn-scan-analyze" onclick="launchScan()" class="btn-full-accent" style="display:none; margin-bottom:16px;">
+        <span class="material-symbols-outlined" style="vertical-align:middle;">auto_awesome</span>
+        Analyser la recette
+      </button>
+
+      <!-- loader -->
+      <div id="scanner-loader" style="display:none; text-align:center; padding:24px;">
+        <div style="width:40px;height:40px;border:4px solid var(--accent)33;border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>
+        <p style="opacity:0.7;">Analyse en cours...</p>
+        <button onclick="cancelScan()" style="
+          margin-top:8px;
+          background:none;
+          border:1px solid #ccc;
+          border-radius:8px;
+          padding:6px 14px;
+          cursor:pointer;
+          font-size:13px;
+          opacity:0.7;
+        ">✖ Annuler</button>
+      </div>
+
+      <!-- résultat -->
+      <div id="scanner-result" style="display:none;">
+        <div id="scanner-result-card" style="
+          background:var(--card);
+          border-radius:14px;
+          padding:16px;
+          margin-bottom:12px;
+          border:1px solid var(--border);
+          line-height:1.7;
+        "></div>
+        <button onclick="saveScanAsRecipe()" class="btn-full-accent">
+          <span class="material-symbols-outlined" style="vertical-align:middle;">save</span>
+          Enregistrer la recette
+        </button>
+        <button onclick="resetScanner()" class="btn-full-secondary" style="margin-top:8px;">
+          🔄 Scanner une autre recette
+        </button>
+      </div>
+
+      <!-- input file caché -->
+      <input type="file" id="scan-input" accept="image/*" capture="environment" hidden>
+    </div>
+
+  </div><!-- fin .main-content -->
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button id="nav-recipes" onclick="showTab('recipes')" class="active-tab">
+      <span class="material-symbols-outlined">restaurant_menu</span>
+      <span>Recettes</span>
+    </button>
+    <button id="nav-selected" onclick="showTab('selected')">
+      <span class="material-symbols-outlined">check_circle</span>
+      <span>Sélection</span>
+    </button>
+    <button id="nav-shopping" onclick="showTab('shopping')">
+      <span class="material-symbols-outlined">shopping_cart</span>
+      <span>Courses</span>
+    </button>
+    <button id="nav-extras" onclick="showTab('extras')">
+      <span class="material-symbols-outlined">edit_note</span>
+      <span>Extras</span>
+    </button>
+    <button id="nav-menu" onclick="showTab('menu')">
+      <span class="material-symbols-outlined">calendar_month</span>
+      <span>Menu</span>
+    </button>
+    <button id="nav-scanner" onclick="showTab('scanner')">
+      <span class="material-symbols-outlined">photo_camera</span>
+      <span>Scanner</span>
+    </button>
+  </nav>
+
+  <!-- 👁️ VIEWER -->
+  <div id="viewer" class="viewer hidden">
+    <div class="viewer-content">
+      <div class="viewer-header">
+        <button class="btn-back" onclick="closeViewer()">
+          <span class="material-symbols-outlined">arrow_back</span>
+        </button>
+        <h2 id="viewer-title" style="margin:0; font-size:18px;"></h2>
+      </div>
+      <div id="viewer-body"></div>
+    </div>
+  </div>
+
+  <!-- ✏️ EDITOR -->
+  <div id="editor" class="viewer hidden">
+    <div class="editor-content">
+      <div class="viewer-header">
+        <button class="btn-back" onclick="closeEditor()">
+          <span class="material-symbols-outlined">arrow_back</span>
+        </button>
+        <h2 style="margin:0; font-size:18px;">✏️ Recette</h2>
+      </div>
+
+      <input id="edit-name" placeholder="Nom de la recette">
+      <textarea id="edit-tags" placeholder="Tags (ex: rapide, poulet, familial)"></textarea>
+
+      <div class="editor-row">
+        <input type="number" id="edit-time" placeholder="Temps (min)" min="0">
+        <select id="edit-difficulty">
+          <option value="">Difficulté</option>
+          <option value="facile">🟢 Facile</option>
+          <option value="moyen">🟡 Moyen</option>
+          <option value="difficile">🔴 Difficile</option>
+        </select>
+        <input type="number" id="edit-servings" placeholder="Portions" min="1">
+      </div>
+
+      <h3>Ingrédients</h3>
+      <div id="ingredients"></div>
+      <button onclick="addIngredient()" class="btn-full-secondary" style="margin-bottom:12px;">
+        <span class="material-symbols-outlined" style="vertical-align:middle; font-size:16px;">add</span>
+        Ingrédient
+      </button>
+
+      <h3>Étapes</h3>
+      <textarea id="steps" placeholder="Une étape par ligne..."></textarea>
+
+      <button onclick="saveRecipe()" class="btn-full-accent" style="margin-top:8px;">
+        <span class="material-symbols-outlined" style="vertical-align:middle; font-size:16px;">check</span>
+        Sauvegarder
+      </button>
+    </div>
+  </div>
+
+</div><!-- fin #screen-app -->
+
+<style>
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script src="ocr.js"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v833ccba57c9e4d2798f2e76cebdd09a11778172276447" integrity="sha512-57MDmcccJXYtNnH+ZiBwzC4jb2rvgVCEokYN+L/nLlmO8rfYT/gIpW2A569iJ/3b+0UEasghjuZH/ma3wIs/EQ==" data-cf-beacon='{"version":"2024.11.0","token":"8607d2a720d14b038279025b2b5a82e5","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
